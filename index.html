@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+	<meta name="author" content="Sam Mersch">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOPOLUX Corpus Search Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            text-align: center;
+            margin: 20px;
+            color: #333;
+        }
+		h2 {
+            text-align: center;
+			justify-content: center;
+            <!-- margin: 20px; -->
+            color: #333;
+        }
+		.footer {
+			position: fixed;
+			left: 0;
+			bottom: 0;
+			width: 100%;
+			background-color: grey;
+			color: white;
+			text-align: center;
+		}
+		.intro {
+			width: 60%;
+			color: #333;
+			text-align: justify;
+			display: block;
+		}
+		a:link {
+			text-decoration: none;
+		}
+		a:visited {
+			text-decoration: none;
+		}
+		a:hover {
+			text-decoration: underline;
+		}
+        #search-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px;
+            gap: 10px;
+        }
+        input, select, button {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        input {
+            width: 50%;
+        }
+        select {
+            width: 20%;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        table {
+            width: 80%;
+            margin: 20px auto;
+            border-collapse: collapse;
+            background-color: #fff;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <h1>TOPOLUX Corpus Search Tool</h1>
+	
+	
+	<h2>Introduction</h2>
+	<center>
+	<div class="intro">
+		<p>The following tool is based on the corpus data first gathered for my doctoral dissertation on Luxembourgish toponyms (Mersch 2021), which was published in Mersch (2023). The data website and possible further updates may be found <a href="https://github.com/sammersch/PhD_Thesis">here</a>.</p>
+		<p>The underlying data can be found <a href="https://github.com/sammersch/PhD_Thesis/blob/main/Corpus_Luxembourgish_Place_Names.csv">here</a> and the algorithms that used it <a href="https://github.com/sammersch/PhD_Thesis/tree/main/toolset">here</a>.</p>
+		<p>This mini website uses JavaScript to read the corpus data as a CSV-file (corpus.csv). The code is embedded into this HTML-file if you want to use it for your own projects. The corpus data has been curated into a document dictionary with automated continuative lvariation names that also can be found in the corpus can be freely accessed <a href="https://github.com/sammersch/PhD_Thesis/blob/main/Appendix_C_Document_Dictionary.pdf">here</a>.</p>
+		<p>A List of my publications and my resumé can be found <a href="http://sammersch.github.io/">here</a>.
+	</div>
+	</center>
+	
+	<h2>How to use</h2>
+	<center>
+	<div class="intro">
+		<p>There are four category fields in the data: name (as in the toponym), section (the cadastral term for the village the toponym is to be found in), the commune (as in the modern administrative unit that the section is part of and the origin (which is the corpus cipher discussed in Mersch (2023:28-56).</p>
+		<p></p>
+		<p>The asterisk (*) can be used as a wild card to search for any consonant or vowel. The asterisk can stand for one or more signs. If you want to look up lexemes as in parts of names, use the asterisk in front or behind the lexeme.</p>
+		<p>The asterisk (*) wild card works for all categories.</p>
+	</div>
+	</center>
+	
+    <div id="search-container">
+        <select id="category-select">
+            <option value="name">Name</option>
+            <option value="section">Section</option>
+            <option value="commune">Commune</option>
+            <option value="origin">Origin</option>
+        </select>
+        <input type="text" id="search-input" placeholder="Enter search term (use * as wildcard)">
+        <button onclick="performSearch()">Search</button>
+    </div>
+
+    <table id="results-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Section</th>
+                <th>Commune</th>
+                <th>Origin</th>
+            </tr>
+        </thead>
+        <tbody id="results-body">
+            <!-- Search results will appear here -->
+        </tbody>
+    </table>
+
+    <script>
+        let csvData = [];
+
+        // Function to load CSV data
+        async function loadCSV() {
+            try {
+                const response = await fetch('corpus.csv'); // Fetch the file
+                const text = await response.text();
+
+                // Parse CSV data using semicolon
+                const rows = text.split('\n').filter(line => line.trim() !== '');
+                rows.forEach(row => {
+                    const columns = row.split(';');
+                    if (columns.length === 4) {
+                        csvData.push({
+                            name: columns[0].trim(),
+                            section: columns[1].trim(),
+                            commune: columns[2].trim(),
+                            origin: columns[3].trim()
+                        });
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading CSV file:', error);
+                alert('Error loading corpus.csv. Ensure the file is available and properly formatted.');
+            }
+        }
+
+        // Function to convert user input to a regular expression
+        function wildcardToRegex(wildcard) {
+            // Escape special regex characters, then replace * with .*
+            const escaped = wildcard.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+            return new RegExp('^' + escaped.replace(/\*/g, '.*') + '$', 'i');
+        }
+
+        // Function to perform the search
+        function performSearch() {
+            const searchInput = document.getElementById('search-input').value.trim();
+            const selectedCategory = document.getElementById('category-select').value;
+            const resultsBody = document.getElementById('results-body');
+
+            // Clear previous results
+            resultsBody.innerHTML = '';
+
+            if (!searchInput) {
+                resultsBody.innerHTML = `<tr><td colspan="4">Please enter a search term.</td></tr>`;
+                return;
+            }
+
+            // Convert input to a regular expression
+            const searchRegex = wildcardToRegex(searchInput);
+
+            // Filter results based on category and regular expression
+            const filteredResults = csvData.filter(row => {
+                const fieldValue = row[selectedCategory];
+                return searchRegex.test(fieldValue);
+            });
+
+            // Display the results
+            if (filteredResults.length > 0) {
+                filteredResults.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${row.name}</td>
+                        <td>${row.section}</td>
+                        <td>${row.commune}</td>
+                        <td>${row.origin}</td>
+                    `;
+                    resultsBody.appendChild(tr);
+                });
+            } else {
+                resultsBody.innerHTML = `<tr><td colspan="4">No results found.</td></tr>`;
+            }
+        }
+
+        // Load CSV when the page loads
+        window.onload = loadCSV;
+    </script>
+	
+	<div class="footer">
+	<p>&copy; Sam Mersch 2024 CC BY</p>
+	</div>
+</body>
+</html>
